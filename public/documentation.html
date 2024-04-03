@@ -6,7 +6,45 @@
     <title>Movie API Documentation</title>
 </head>
 <body>
-    <h1>Welcome to the Movie API Documentation</h1>
-    <p>This API provides access to a database of movies. Developers can use this API to retrieve information about movies, such as titles, genres, release dates, and more.</p>
+    <h1>REST API Documentation</h1>
+    <h2>Movies Endpoints</h2>
+    <table>
+        <tr>
+            <th>Request</th>
+            <th>URL</th>
+            <th>Response</th>
+        </tr>
+        <tr>
+            <td>GET</td>
+            <td>/movies</td>
+            <td>List of all movies</td>
+        </tr>
+        <tr>
+            <td>GET</td>
+            <td>/movies/:title</td>
+            <td>Data about a single movie by title</td>
+        </tr>
+        <!-- Add rows for other movie-related endpoints -->
+    </table>
+
+    <h2>Users Endpoints</h2>
+    <table>
+        <tr>
+            <th>Request</th>
+            <th>URL</th>
+            <th>Response</th>
+        </tr>
+        <tr>
+            <td>POST</td>
+            <td>/users/register</td>
+            <td>New user registration</td>
+        </tr>
+        <tr>
+            <td>PUT</td>
+            <td>/users/:id</td>
+            <td>Update user info</td>
+        </tr>
+        <!-- Add rows for other user-related endpoints -->
+    </table>
 </body>
 </html>
