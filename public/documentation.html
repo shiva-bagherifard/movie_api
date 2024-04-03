@@ -7,6 +7,7 @@
 </head>
 <body>
     <h1>REST API Documentation</h1>
+    
     <h2>Movies Endpoints</h2>
     <table>
         <tr>
@@ -44,7 +45,24 @@
             <td>/users/:id</td>
             <td>Update user info</td>
         </tr>
-        <!-- Add rows for other user-related endpoints -->
+        <tr>
+            <td>POST</td>
+            <td>/users/:id/favorites/add</td>
+            <td>Add a movie to user's favorites</td>
+        </tr>
+        <tr>
+            <td>DELETE</td>
+            <td>/users/:id/favorites/remove</td>
+            <td>Remove a movie from user's favorites</td>
+        </tr>
+        <tr>
+            <td>DELETE</td>
+            <td>/users/:id/delete</td>
+            <td>Deregister a user</td>
+        </tr>
     </table>
+
+    <!-- Add more sections for other endpoints if necessary -->
+
 </body>
 </html>
