@@ -65,6 +65,42 @@ app.get('/', (req, res) => {
     res.send('Welcome to my movie app!');
 });
 
+// GET route for single movie by title
+app.get('/movies/:title', (req, res) => {
+    const title = req.params.title;
+    const movie = topTenMovies.find(movie => movie.title === title);
+    if (movie) {
+        res.json(movie);
+    } else {
+        res.status(404).send('Movie not found');
+    }
+});
+
+// GET route for genre by name/title
+app.get('/genres/:name', (req, res) => {
+    const genreName = req.params.name;
+    // Logic to retrieve genre data by name
+});
+
+// GET route for director by name
+app.get('/directors/:name', (req, res) => {
+    const directorName = req.params.name;
+    // Logic to retrieve director data by name
+});
+
+// POST route for new user registration
+app.post('/users/register', (req, res) => {
+    // Logic for new user registration
+});
+
+// PUT route for updating user info
+app.put('/users/:id', (req, res) => {
+    const userId = req.params.id;
+    // Logic to update user info
+});
+
+// Other user-related routes can be added similarly
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -72,6 +108,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-app.listen(8080, () => {
-    console.log('The movie app has loaded and is listening on port 8080');
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`The movie app has loaded and is listening on port ${PORT}`);
 });
