@@ -1,182 +1,131 @@
-const express = require('express');
-const morgan = require('morgan');
-const fs = require('fs');
-const path = require('path');
-const bodyParser = require('body-parser');
-
+const express = require("express");
 const app = express();
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const Models = require("./models");
+const Movies = Models.Movie;
+const Users = Models.User;
 
-// Middleware to log all requests
-const accessLogStream = fs.createWriteStream(path.join(__dirname, 'log.txt'), { flags: 'a' });
-app.use(morgan('combined', { stream: accessLogStream }));
+mongoose.connect("mongodb://localhost:27017/moviesDB", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-// Serve static files from the public folder
-app.use(express.static('public'));
-
-// Sample data for demonstration
-let topTenMovies = [
-    {
-        title: 'Interstellar',
-        Director: 'Christopher Nolan'
-    },
-    {
-        title: 'The Matrix',
-        Director: 'Lana Wachowski, Lilly Wachowski'
-    },
-    {
-        title: 'Forrest Gump',
-        Director: 'Robert Zemeckis'
-    },
-    {
-        title: 'Inception',
-        Director: 'Christopher Nolan'
-    },
-    {
-        title: 'Pulp Fiction',
-        Director: 'Quentin Tarantino'
-    },
-    {
-        title: 'The Shawshank Redemption',
-        Director: 'Frank Darabont'
-    },
-    {
-        title: 'The Dark Knight',
-        Director: 'Christopher Nolan'
-    },
-    {
-        title: 'The Lord of the Rings: The Return of the King',
-        Director: 'Peter Jackson'
-    },
-    {
-        title: 'The Godfather',
-        Director: 'Francis Ford Coppola'
-    },
-    {
-        title: 'Schindler\'s List',
-        Director: 'Steven Spielberg'
-    }
-];
-
-// Sample data for genres and directors
-const genres = [
-    { name: 'Action', description: 'Action film is a film genre in which the protagonist is thrust into a series of events that typically involve violence and physical feats.' },
-    { name: 'Drama', description: 'Drama film is a genre that relies on the emotional and relational development of realistic characters.' },
-    // Add more genres as needed
-];
-
-const directors = [
-    { name: 'Christopher Nolan', bio: 'Best known for his cerebral, often nonlinear, storytelling, acclaimed writer-director Christopher Nolan was born on July 30, 1970, in London, England.', birthYear: 1970 },
-    { name: 'Quentin Tarantino', bio: '...', birthYear: 1963 }, // Add more director data
-];
-
-// Parse JSON bodies for POST requests
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// GET route for /movies
-app.get('/movies', (req, res) => {
-    res.json(topTenMovies);
+// Return a list of ALL movies to the user
+app.get("/movies", async (req, res) => {
+  try {
+    const movies = await Movies.find();
+    res.status(200).json(movies);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// GET route for single movie by title
-app.get('/movies/:title', (req, res) => {
-    const title = req.params.title;
-    const movie = topTenMovies.find(movie => movie.title === title);
-    if (movie) {
-        res.json(movie);
-    } else {
-        res.status(404).send('Movie not found');
-    }
+// Return data (description, genre, director, image URL, whether it’s featured or not) about a single movie by title to the user
+app.get("/movies/:title", async (req, res) => {
+  try {
+    const movie = await Movies.findOne({ Title: req.params.title });
+    res.status(200).json(movie);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// GET route for genre by name
-app.get('/genres/:name', (req, res) => {
-    const genreName = req.params.name;
-    const genre = genres.find(genre => genre.name.toLowerCase() === genreName.toLowerCase());
-    if (genre) {
-        res.json(genre);
-    } else {
-        res.status(404).send('Genre not found');
-    }
+// Return data about a genre (description) by name/title (e.g., “Thriller”)
+app.get("/genres/:name", async (req, res) => {
+  try {
+    const genre = await Movies.findOne({ "Genre.Name": req.params.name });
+    res.status(200).json(genre.Genre);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// GET route for director by name
-app.get('/directors/:name', (req, res) => {
-    const directorName = req.params.name;
-    const director = directors.find(director => director.name.toLowerCase() === directorName.toLowerCase());
-    if (director) {
-        res.json(director);
-    } else {
-        res.status(404).send('Director not found');
-    }
+// Return data about a director (bio, birth year, death year) by name
+app.get("/directors/:name", async (req, res) => {
+  try {
+    const director = await Movies.findOne({ "Director.Name": req.params.name });
+    res.status(200).json(director.Director);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// GET route for /
-app.get('/', (req, res) => {
-    res.send('Welcome to my movie app!');
+// Allow new users to register
+app.post("/users/register", async (req, res) => {
+  try {
+    const newUser = await Users.create(req.body);
+    res.status(201).json(newUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// POST route for new user registration
-app.post('/users/register', (req, res) => {
-    const { username, password } = req.body;
-    // Check if username and password are provided
-    if (!username || !password) {
-        return res.status(400).send('Username and password are required');
-    }
-    // Perform registration logic here
-    // For demonstration purposes, let's assume registration is successful
-    res.send('Registration successful');
+// Allow users to update their user info (username, password, email, date of birth)
+app.put("/users/:id", async (req, res) => {
+  try {
+    const updatedUser = await Users.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// PUT route for updating user info
-app.put('/users/:id', (req, res) => {
-    const userId = req.params.id;
-    const { username } = req.body;
-
-    // Check if username is provided
-    if (!username) {
-        return res.status(400).send('Username is required');
-    }
-
-    // Logic to update user info
-    // Here you would update the user with the provided ID and new username
-    // For demonstration purposes, let's assume the user is updated successfully
-    res.send('User info updated successfully');
+// Allow users to add a movie to their list of favorites
+app.post("/users/:id/favorites/add", async (req, res) => {
+  try {
+    const updatedUser = await Users.findByIdAndUpdate(req.params.id, { $push: { FavoriteMovies: req.body.movieId } }, { new: true });
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// POST route for adding a movie to favorites
-app.post('/users/:id/favorites/add', (req, res) => {
-    const userId = req.params.id;
-    const { title } = req.body;
-    // Logic to add the movie with the provided title to the user's favorites
-    // Then send a response indicating movie has been added to favorites
-    res.send(`${title} added to favorites`);
+// Allow users to remove a movie from their list of favorites
+app.delete("/users/:id/favorites/remove", async (req, res) => {
+  try {
+    const updatedUser = await Users.findByIdAndUpdate(req.params.id, { $pull: { FavoriteMovies: req.body.movieId } }, { new: true });
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// DELETE route for removing a movie from favorites
-app.delete('/users/:id/favorites/remove', (req, res) => {
-    const userId = req.params.id;
-    const { title } = req.body;
-    // Logic to remove the movie with the provided title from the user's favorites
-    // Then send a response indicating movie has been removed from favorites
-    res.send(`${title} removed from favorites`);
+// Allow existing users to deregister
+app.delete("/users/:id/delete", async (req, res) => {
+  try {
+    await Users.findByIdAndRemove(req.params.id);
+    res.status(200).send("User deleted successfully");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error: " + error);
+  }
 });
 
-// DELETE route for deregistering a user
-app.delete('/users/:id/delete', (req, res) => {
-    const userId = req.params.id;
-    // Logic to deregister the user with the provided ID
-    // Then send a response indicating user email has been removed
-    res.send('User deregistered successfully');
+// Documentation endpoint
+app.get("/documentation", (req, res) => {
+  res.sendFile(__dirname + "/documentation.html");
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
 });
 
-// Start the server
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`The movie app has loaded and is listening on port ${PORT}`);
+// Listen for requests
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });

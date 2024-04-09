@@ -13,19 +13,33 @@
         <tr>
             <th>Request</th>
             <th>URL</th>
+            <th>Request Body</th>
             <th>Response</th>
         </tr>
         <tr>
             <td>GET</td>
             <td>/movies</td>
+            <td>N/A</td>
             <td>List of all movies</td>
         </tr>
         <tr>
             <td>GET</td>
             <td>/movies/:title</td>
+            <td>N/A</td>
             <td>Data about a single movie by title</td>
         </tr>
-        <!-- Add rows for other movie-related endpoints -->
+        <tr>
+            <td>GET</td>
+            <td>/genres/:name</td>
+            <td>N/A</td>
+            <td>Data about a genre by name</td>
+        </tr>
+        <tr>
+            <td>GET</td>
+            <td>/directors/:name</td>
+            <td>N/A</td>
+            <td>Data about a director by name</td>
+        </tr>
     </table>
 
     <h2>Users Endpoints</h2>
@@ -33,36 +47,62 @@
         <tr>
             <th>Request</th>
             <th>URL</th>
+            <th>Request Body</th>
             <th>Response</th>
         </tr>
         <tr>
             <td>POST</td>
             <td>/users/register</td>
+            <td>
+                {
+                    "Username": "example_user",
+                    "Password": "example_password",
+                    "Email": "user@example.com",
+                    "Birthday": "1990-01-01"
+                }
+            </td>
             <td>New user registration</td>
         </tr>
         <tr>
             <td>PUT</td>
             <td>/users/:id</td>
-            <td>Update user info</td>
+            <td>
+                {
+                    "Username": "updated_username",
+                    "Password": "updated_password",
+                    "Email": "updated_email@example.com",
+                    "Birthday": "1992-02-02"
+                }
+            </td>
+            <td>Updated user info</td>
         </tr>
         <tr>
             <td>POST</td>
             <td>/users/:id/favorites/add</td>
-            <td>Add a movie to user's favorites</td>
+            <td>
+                {
+                    "MovieId": "movie_id_to_add_to_favorites"
+                }
+            </td>
+            <td>Added a movie to user's favorites</td>
         </tr>
         <tr>
             <td>DELETE</td>
             <td>/users/:id/favorites/remove</td>
-            <td>Remove a movie from user's favorites</td>
+            <td>
+                {
+                    "MovieId": "movie_id_to_remove_from_favorites"
+                }
+            </td>
+            <td>Removed a movie from user's favorites</td>
         </tr>
         <tr>
             <td>DELETE</td>
             <td>/users/:id/delete</td>
-            <td>Deregister a user</td>
+            <td>N/A</td>
+            <td>Deregistered a user</td>
         </tr>
     </table>
-
-    <!-- Add more sections for other endpoints if necessary -->
 
 </body>
 </html>
