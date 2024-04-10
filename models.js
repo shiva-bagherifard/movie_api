@@ -1,39 +1,59 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-// Mongoose schema for movies
-let movieSchema = mongoose.Schema({
-    Title: { type: String, required: true },
-    Description: { type: String },
-    Genre: { type: mongoose.Schema.Types.ObjectId, ref: 'Genre' },
-    Director: { type: mongoose.Schema.Types.ObjectId, ref: 'Director' },
-    Actors: [{ type: String }],
-    ImagePath: { type: String },
-    Featured: { type: Boolean }
+
+let movieSchema= mongoose.Schema({
+    Title:{type: String, required: true },
+    Description:{type: String, required: true},
+    Genre:{
+        Name: String,
+        _id: {type: mongoose.Schema.Types.ObjectId, ref: 'genres',required: true}
+            },
+    Director:{
+        Name: String,
+        _id: { type: mongoose.Schema.Types.ObjectId, ref: 'directors', required: true}
+            },
+    Featured: Boolean,
+    ImageUrl: {type: String , required: true}
 });
 
-// Mongoose schema for users
 let userSchema = mongoose.Schema({
-    Username: { type: String, required: true },
-    Password: { type: String, required: true },
-    Email: { type: String },
-    Birthday: { type: Date },
-    FavoriteMovies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }]
+    username:{type: String, required: true},
+    password:{type: String, required: true},
+    email:{type: String, required: true},
+    birthDate: Date,
+    favoriteMovies:[{type: String, ref: 'Movie'}]
+
 });
 
-// Hashes the given password using bcrypt
 userSchema.statics.hashPassword = (password) => {
     return bcrypt.hashSync(password, 10);
-};
+  };
+  
+  userSchema.methods.validatePassword = function(password) {
+    return bcrypt.compareSync(password, this.password);
+  };
 
-// Validates the given password against the stored hashed password
-userSchema.methods.validatePassword = function (password) {
-    return bcrypt.compareSync(password, this.Password);
-};
+let directorSchema = mongoose.Schema({
+    _id:{ type: mongoose.Schema.Types.ObjectId, ref: 'directors', required: true},
+    Name:{type: String, required: true},
+    Bio:{type: String, required: true}, 
+    birthDate: Date,
+    DeathDate: Date   
+});
+let genreSchema = mongoose.Schema({
+    _id:{ type: mongoose.Schema.Types.ObjectId, ref: 'genre', required: true},
+    Name:{type: String, required: true},
+    Description:{type: String, required: true} 
+});
 
-// Define models
 let Movie = mongoose.model('Movie', movieSchema);
 let User = mongoose.model('User', userSchema);
+let Director = mongoose.model('Director', directorSchema)
+let Genre = mongoose.model('Genre', genreSchema);
+
 
 module.exports.Movie = Movie;
 module.exports.User = User;
+module.exports.Director = Director;
+module.exports.Genre = Genre;

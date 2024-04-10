@@ -3,106 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie API Documentation</title>
+    <title>Documentation</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch&family=Inter&family=Libre+Barcode+39+Extended+Text&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>REST API Documentation</h1>
-    
-    <h2>Movies Endpoints</h2>
-    <table>
-        <tr>
-            <th>Request</th>
-            <th>URL</th>
-            <th>Request Body</th>
-            <th>Response</th>
-        </tr>
-        <tr>
-            <td>GET</td>
-            <td>/movies</td>
-            <td>N/A</td>
-            <td>List of all movies</td>
-        </tr>
-        <tr>
-            <td>GET</td>
-            <td>/movies/:title</td>
-            <td>N/A</td>
-            <td>Data about a single movie by title</td>
-        </tr>
-        <tr>
-            <td>GET</td>
-            <td>/genres/:name</td>
-            <td>N/A</td>
-            <td>Data about a genre by name</td>
-        </tr>
-        <tr>
-            <td>GET</td>
-            <td>/directors/:name</td>
-            <td>N/A</td>
-            <td>Data about a director by name</td>
-        </tr>
-    </table>
-
-    <h2>Users Endpoints</h2>
-    <table>
-        <tr>
-            <th>Request</th>
-            <th>URL</th>
-            <th>Request Body</th>
-            <th>Response</th>
-        </tr>
-        <tr>
-            <td>POST</td>
-            <td>/users/register</td>
-            <td>
-                {
-                    "Username": "example_user",
-                    "Password": "example_password",
-                    "Email": "user@example.com",
-                    "Birthday": "1990-01-01"
-                }
-            </td>
-            <td>New user registration</td>
-        </tr>
-        <tr>
-            <td>PUT</td>
-            <td>/users/:id</td>
-            <td>
-                {
-                    "Username": "updated_username",
-                    "Password": "updated_password",
-                    "Email": "updated_email@example.com",
-                    "Birthday": "1992-02-02"
-                }
-            </td>
-            <td>Updated user info</td>
-        </tr>
-        <tr>
-            <td>POST</td>
-            <td>/users/:id/favorites/add</td>
-            <td>
-                {
-                    "MovieId": "movie_id_to_add_to_favorites"
-                }
-            </td>
-            <td>Added a movie to user's favorites</td>
-        </tr>
-        <tr>
-            <td>DELETE</td>
-            <td>/users/:id/favorites/remove</td>
-            <td>
-                {
-                    "MovieId": "movie_id_to_remove_from_favorites"
-                }
-            </td>
-            <td>Removed a movie from user's favorites</td>
-        </tr>
-        <tr>
-            <td>DELETE</td>
-            <td>/users/:id/delete</td>
-            <td>N/A</td>
-            <td>Deregistered a user</td>
-        </tr>
-    </table>
-
+    <header>
+        <h1> CINE-VERSE EXPRESS API </h1>
+        <h5> Short description </h5>
+        <p> The web application provides users with access to information about different <br>
+            movies, directors, and genres. Users will be able to sign up, update their <br>
+            personal information, and create a list of their favorite movies</p>
+    </header>
+    <main>
+        <h3> Server</h3>
+        <button> localhost:8080 </button>
+        <h4> MOVIES: Managing movies API </h4>
+        <div class="endpoints-list">
+            <div class="get"> GET</div> <span>/movies</span> lists all the movies
+        </div>
+        <div class="endpoints-list">
+            <div class="get"> GET</div> <span>/movies/{title}</span> lists all data about a movie by the title
+        </div>
+        <div class="endpoints-list">
+            <div class="get"> GET</div> <span>/movies/genre/{genre}</span> lists all the movie titles with a specific genre
+        </div>
+        <div class="endpoints-list">
+            <div class="get"> GET</div> <span>/movies/director/{directorName}</span> lists data about a director
+        </div>
+        <div class="endpoints-list">
+            <div class="get"> GET</div> <span>/users</span> lists all the users
+        </div>
+        <div class="endpoints-list">
+            <div class="post">POST</div> <span>/users</span> create a new user
+        </div>
+        <div class="endpoints-list">
+            <div class="put">PUT</div> <span>/users/{id}</span> update user name using the id
+        </div>
+        <div class="endpoints-list">
+            <div class="delete">DELETE</div> <span>/users/{id}</span> remove user from the list
+        </div>
+        <div class="endpoints-list">
+            <div class="post">POST</div> <span>/users/{id}/{movieTitle}</span> add a movie to the user's favorite movies
+            list
+        </div>
+        <div class="endpoints-list">
+            <div class="delete">DELETE</div> <span>/users/{id}/{movieTitle}</span> delete a movie from the user's favorite
+            movies list
+        </div>
+    </main>
 </body>
 </html>
