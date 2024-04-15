@@ -7,12 +7,12 @@ let Users = Models.User,
   JWTStrategy = passportJWT.Strategy,
   ExtractJWT = passportJWT.ExtractJwt;
 
-passport.use(
-  new LocalStrategy(
-    {
-      usernameField: "Username",
-      passwordField: "Password",
-    },
+  passport.use(
+    new LocalStrategy(
+      {
+        usernameField: "username", // Correct username field
+        passwordField: "password", // Correct password field
+      },
     async (username, password, callback) => {
       console.log("${username} ${password}");
       await Users.findOne({ Username: username })
@@ -40,16 +40,19 @@ passport.use(
   new JWTStrategy(
     {
       jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken(),
-      secretOrKey: "your_jwt_secret",
+      secretOrKey: "MySecretKey2024!" // Correct secret key
     },
-    async (jwtPayload, callback) => {
-      return await Users.findById(jwtPayload._id)
-        .then((user) => {
-          return callback(null, user);
-        })
-        .catch((error) => {
-          return callback(error);
-        });
+    async (jwtPayload, done) => {
+      try {
+        const user = await Users.findById(jwtPayload._id);
+        if (!user) {
+          return done(null, false, { message: 'User not found' });
+        }
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
     }
   )
 );
+

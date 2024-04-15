@@ -1,33 +1,86 @@
-const express = require("express"),
-  morgan = require("morgan"),
-  bodyParser = require("body-parser"),
-  uuid = require("uuid"),
-  mongoose = require("mongoose"),
-  Models = require("./models.js");
+require('dotenv').config();
+const express = require("express");
+const morgan = require("morgan");
+const bodyParser = require("body-parser");
+const uuid = require("uuid");
+const mongoose = require("mongoose");
+const Models = require("./models");
+const passport = require("passport");
+const jwt = require('jsonwebtoken');
+const passportJWT = require("passport-jwt");
+const ExtractJWT = passportJWT.ExtractJwt;
+const LocalStrategy = require("passport-local").Strategy;
+const JWTStrategy = passportJWT.Strategy;
 
 const app = express();
-
-app.use(bodyParser.json()); //any time using req.body, the data will be expected to be in JSON format
-app.use(bodyParser.urlencoded({ extended: true }));
-
-app.use(express.static("public"));
-app.use(morgan("common"));
-
-//Import auth.js
-let auth = require("./auth")(app);
-
-// Import passport and passport.js
-const passport = require("passport");
-require("./passport");
-
-//Require Mongoose models from model.ks
-const Movies = Models.Movie;
 const Users = Models.User;
+const Movies = Models.Movie;
+const Directors = Models.Director;
+const Genres = Models.Genre;
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(passport.initialize());
+app.use(express.static("public"));
+app.use(morgan('dev'));
 
 mongoose.connect("mongodb://localhost:27017/moviesDB", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+
+passport.use(
+  new LocalStrategy(
+    {
+      usernameField: "Username",
+      passwordField: "Password",
+    },
+    async (username, password, callback) => {
+      console.log("${username} ${password}");
+      await Users.findOne({ Username: username })
+        .then((user) => {
+          if (!user) {
+            console.log("incorrect username");
+            return callback(null, false, {
+              message: "Incorrect username or password",
+            });
+          }
+          console.log("finished");
+          return callback(null, user);
+        })
+        .catch((error) => {
+          if (error) {
+            console.log(error);
+            return callback(error);
+          }
+        });
+    }
+  )
+);
+
+console.log('ExtractJWT.fromAuthHeaderAsBearerToken():', ExtractJWT.fromAuthHeaderAsBearerToken());
+
+// Configure JWT Strategy
+passport.use(
+  new JWTStrategy(
+    {
+      jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken(),
+      secretOrKey: "MySecretKey2024!" // Correct secret key
+    },
+    async (jwtPayload, callback) => {
+      console.log('JWT Payload:', jwtPayload);
+      return await Users.findById(jwtPayload._id)
+        .then((user) => {
+          return callback(null, user);
+        })
+        .catch((error) => {
+          return callback(error);
+        });
+    }
+  )
+);
+
+
 
 
 //READ
@@ -57,21 +110,20 @@ app.get("/", (req, res) => {
       });
   });
   
-  // READ movie list
-  app.get(
-    "/movies",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      await Movies.find()
-        .then((movies) => {
-          res.status(201).json(movies);
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).send("Error: " + err);
-        });
-    }
-  );
+ // Protected route to get movie list
+app.get('/movies', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const movies = await Movies.find();
+    res.status(200).json(movies);
+  } catch (error) {
+    console.error('Error fetching movies:', error);
+    res.status(500).send('Error fetching movies');
+  }
+});
+
+
+const jwtSecret = process.env.JWT_SECRET || 'MySecretKey2024!'; 
+
   
   //READ movie list by movie title
   app.get(
@@ -148,63 +200,63 @@ app.get("/", (req, res) => {
   
   // Login route
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+  const { username, password } = req.body;
 
-    try {
-        // Find the user in the database
-        const user = await Users.findOne({ username });
+  try {
+      // Find the user in the database
+      const user = await Users.findOne({ username });
 
-        // If user not found or password incorrect, send error response
-        if (!user || user.password !== password) {
-            return res.status(400).json({ error: 'Invalid username or password' });
-        }
+      // Debugging using console.log()
+      console.log('User:', user);
 
-        // If username and password are correct, generate JWT token
-        const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET);
+      // If user not found, send error response
+      if (!user) {
+          return res.status(400).json({ error: 'Invalid username or password' });
+      }
 
-        // Return the token
-        res.json({ token });
-    } catch (error) {
-        console.error('Error during login:', error);
-        res.status(500).json({ error: 'Something went wrong during login' });
-    }
+      // Check if the provided password matches the stored password
+      if (user.password !== password) {
+          return res.status(400).json({ error: 'Invalid username or password' });
+      }
+
+      // If username and password are correct, generate JWT token
+      const token = jwt.sign({ username: user.username }, 'MySecretKey2024!');
+
+      // Construct response object
+      res.status(200).json({ message: 'Login successful', user, token });
+  } catch (error) {
+      // Error handling
+      console.error('Error during login:', error);
+      res.status(500).json({ error: 'Something went wrong during login' });
+  }
 });
 
-
-
-  
   
   //UPDATE User's username
-  app.put(
-    "/users/:Username",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      // CONDITION TO CHECK ADDED HERE
-      if (req.user.Username !== req.params.Username) {
-        return res.status(400).send("Permission denied");
-      }
-      // CONDITION ENDS
-      await Users.findOneAndUpdate(
-        { Username: req.params.Username },
+  app.put('/users/:Username', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    // CONDITION TO CHECK ADDED HERE
+    if(req.user.Username !== req.params.Username){
+        return res.status(400).send('Permission denied');
+    }
+    // CONDITION ENDS
+    await Users.findOneAndUpdate({ Username: req.params.Username }, {
+        $set:
         {
-          $set: {
             Username: req.body.Username,
             Password: req.body.Password,
             Email: req.body.Email,
-            Birthday: req.body.Birthday,
-          },
-        },
-        { new: true }
-    ) // This line makes sure that the updated document is returned
-      .then((updatedUser) => {
-        res.json(updatedUser);
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).send("Error: " + err);
-      });
-  }
-);
+            Birthday: req.body.Birthday
+        }
+    },
+        { new: true }) // This line makes sure that the updated document is returned
+        .then((updatedUser) => {
+            res.json(updatedUser);
+        })
+        .catch((err) => {
+            console.log(err);
+            res.status(500).send('Error: ' + err);
+        })
+});
 
 // Add a movie to a user's list of favorites
 app.post(
@@ -270,12 +322,14 @@ app.post(
     }
   );
   
-  //Error Handling
-  app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send("Something broke!");
-  });
-  //Listening for Request
-  app.listen(8080, () => {
-    console.log("Your app is listening on port 8080.");
-  });
+  // Error Handling
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
+});
+
+// Listening for Requests
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Your app is listening on port ${PORT}.`);
+});     
