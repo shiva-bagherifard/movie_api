@@ -11,6 +11,9 @@ const passportJWT = require("passport-jwt");
 const ExtractJWT = passportJWT.ExtractJwt;
 const LocalStrategy = require("passport-local").Strategy;
 const JWTStrategy = passportJWT.Strategy;
+const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
+const Director = require("./models").Director;
+
 
 const app = express();
 const Users = Models.User;
@@ -62,20 +65,21 @@ console.log('ExtractJWT.fromAuthHeaderAsBearerToken():', ExtractJWT.fromAuthHead
 
 // Configure JWT Strategy
 passport.use(
-  new JWTStrategy(
+  new JwtStrategy(
     {
-      jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: "MySecretKey2024!" // Correct secret key
     },
-    async (jwtPayload, callback) => {
-      console.log('JWT Payload:', jwtPayload);
-      return await Users.findById(jwtPayload._id)
-        .then((user) => {
-          return callback(null, user);
-        })
-        .catch((error) => {
-          return callback(error);
-        });
+    async (jwtPayload, done) => {
+      try {
+        const user = await Users.findById(jwtPayload.sub);
+        if (!user) {
+          return done(null, false, { message: 'User not found' });
+        }
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
     }
   )
 );
@@ -126,49 +130,67 @@ const jwtSecret = process.env.JWT_SECRET || 'MySecretKey2024!';
 
   
   //READ movie list by movie title
-  app.get(
-    "/movies/:Title",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      await Movies.findOne({ Title: req.params.Title })
-        .then((movie) => {
-          res.json(movie);
-        })
-        .catch((err) => {
-          res.status(500).send("Error: " + err);
-        });
+app.get("/movies/:Title", passport.authenticate("jwt", { session: false }), async (req, res) => {
+  try {
+      const movie = await Movies.findOne({ title: req.params.Title });
+      if (!movie) {
+          return res.status(404).json({ error: "Movie not found" });
+      }
+      res.json(movie);
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+// READ movie by genre name
+app.get("/movies/genres/:Genre", passport.authenticate("jwt", { session: false }), async (req, res) => {
+  try {
+    console.log("Requested genre:", req.params.Genre);
+    const movie = await Movies.findOne({ genre: req.params.Genre });
+    console.log("Retrieved movie:", movie);
+    if (!movie) {
+      return res.status(404).json({ error: "No movie found for the genre" });
     }
-  );
-  
-  //READ genre by name
-  app.get(
-    "/movies/genres/:Genre",
-    passport.authenticate("jwt", { session: false }),
-    (req, res) => {
-      Movies.findOne({ "Genre.Name": req.params.Genre })
-        .then((movie) => {
-          res.status(200).json(movie.Genre.Description);
-        })
-        .catch((err) => {
-          res.status(500).send("Error: " + err);
-        });
+    res.json(movie);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+// READ director by name
+app.get("/movies/director/:Director", passport.authenticate("jwt", { session: false }), async (req, res) => {
+  try {
+    const directorName = req.params.Director;
+    console.log("Requested director:", directorName);
+
+    // Find the director by name in the database using the Director model
+    const director = await Director.findOne({ name: directorName });
+
+    // Check if the director is not found
+    if (!director) {
+      return res.status(404).json({ error: "Director not found" });
     }
-  );
-  
-  // READ director by name [UPDATED]
-  app.get(
-    "/movies/directors/:Director",
-    passport.authenticate("jwt", { session: false }),
-    (req, res) => {
-      Movies.findOne({ "Director.Name": req.params.Director })
-        .then((movie) => {
-          res.status(200).json(movie.Director);
-        })
-        .catch((err) => {
-          res.status(500).send("Error: " + err);
-        });
-    }
-  );
+
+    // Send the director details in the response
+    res.status(200).json(director);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+
+
   
  //CREATE New User
  app.post('/users', async (req, res) => {
@@ -203,33 +225,67 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-      // Find the user in the database
       const user = await Users.findOne({ username });
 
-      // Debugging using console.log()
-      console.log('User:', user);
-
-      // If user not found, send error response
-      if (!user) {
+      if (!user || user.password !== password) {
           return res.status(400).json({ error: 'Invalid username or password' });
       }
 
-      // Check if the provided password matches the stored password
-      if (user.password !== password) {
-          return res.status(400).json({ error: 'Invalid username or password' });
-      }
-
-      // If username and password are correct, generate JWT token
-      const token = jwt.sign({ username: user.username }, 'MySecretKey2024!');
+      const token = jwt.sign({ sub: user._id }, 'MySecretKey2024!', { expiresIn: '1h' });
 
       // Construct response object
-      res.status(200).json({ message: 'Login successful', user, token });
+      return res.status(200).json({ message: 'Login successful', user, token });
   } catch (error) {
       // Error handling
       console.error('Error during login:', error);
-      res.status(500).json({ error: 'Something went wrong during login' });
+      return res.status(500).json({ error: 'Something went wrong during login' });
   }
 });
+
+
+
+
+// Middleware for token verification
+function verifyToken(req, res, next) {
+  const token = req.headers.authorization;
+
+  if (!token) {
+      return res.status(401).send('Access denied. No token provided.');
+  }
+
+  jwt.verify(token, 'MySecretKey2024!', (err, decoded) => {
+      if (err) {
+          return res.status(401).send('Invalid token.');
+      }
+      req.user = decoded; // Attach decoded payload to request object for later use
+      next(); // Move to the next middleware or route handler
+  });
+}
+
+// Example usage in route handler
+app.get('/movies', verifyToken, (req, res) => {
+  // Authenticated request, access granted
+  res.send('List of movies...');
+});
+
+// Middleware for role-based access control
+function checkPermissions(req, res, next) {
+  const user = req.user; // Assuming the user object is attached by a previous middleware
+  
+  // Check if the user has the required role or permission
+  if (user.role === 'admin') {
+      next(); // Access granted for admin users
+  } else {
+      res.status(403).send('Access denied. Insufficient permissions.');
+  }
+}
+
+// Example usage in route handler
+app.get('/movies', verifyToken, checkPermissions, (req, res) => {
+  // Authenticated and authorized request, access granted
+  res.send('List of movies...');
+});
+
 
   
   //UPDATE User's username
@@ -332,4 +388,4 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Your app is listening on port ${PORT}.`);
-});     
+});
