@@ -164,29 +164,27 @@ app.get("/movies/genres/:Genre", passport.authenticate("jwt", { session: false }
 
 
 
-// READ director by name
-app.get("/movies/director/:Director", passport.authenticate("jwt", { session: false }), async (req, res) => {
+// READ movies by director name
+app.get("/movies/director/:DirectorName", passport.authenticate("jwt", { session: false }), async (req, res) => {
   try {
-    const directorName = req.params.Director;
-    console.log("Requested director:", directorName);
+      const directorName = req.params.DirectorName;
+      console.log("Requested director:", directorName);
 
-    // Find the director by name in the database using the Director model
-    const director = await Director.findOne({ name: directorName });
+      // Find movies directed by the specified director in the database
+      const movies = await Movies.find({ "director.name": directorName });
 
-    // Check if the director is not found
-    if (!director) {
-      return res.status(404).json({ error: "Director not found" });
-    }
+      // Check if movies are found
+      if (!movies || movies.length === 0) {
+          return res.status(404).json({ error: "Movies directed by the specified director not found" });
+      }
 
-    // Send the director details in the response
-    res.status(200).json(director);
+      // Send the movies directed by the specified director in the response
+      res.status(200).json(movies);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+      console.error(error);
+      res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 
 
 
@@ -288,95 +286,123 @@ app.get('/movies', verifyToken, checkPermissions, (req, res) => {
 
 
   
-  //UPDATE User's username
-  app.put('/users/:Username', passport.authenticate('jwt', { session: false }), async (req, res) => {
-    // CONDITION TO CHECK ADDED HERE
-    if(req.user.Username !== req.params.Username){
-        return res.status(400).send('Permission denied');
-    }
-    // CONDITION ENDS
-    await Users.findOneAndUpdate({ Username: req.params.Username }, {
-        $set:
-        {
-            Username: req.body.Username,
-            Password: req.body.Password,
-            Email: req.body.Email,
-            Birthday: req.body.Birthday
-        }
-    },
-        { new: true }) // This line makes sure that the updated document is returned
-        .then((updatedUser) => {
-            res.json(updatedUser);
-        })
-        .catch((err) => {
-            console.log(err);
-            res.status(500).send('Error: ' + err);
-        })
-});
+  // Update user data
+app.put(
+  "/users/:Username",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+      // Check if the authenticated user is the same as the user being updated
+      if (req.user.username !== req.params.Username) {
+          return res.status(403).json({ error: "Permission denied. You can only update your own user data." });
+      }
+
+      // Update the user data
+      await Users.findOneAndUpdate(
+          { username: req.params.Username },
+          {
+              $set: {
+                  username: req.body.username,
+                  password: req.body.password,
+                  email: req.body.email,
+                  favoriteMovies: req.body.favoriteMovies,
+                  birthday: req.body.birthday
+              }
+          },
+          { new: true }
+      )
+      .then((updatedUser) => {
+          res.json(updatedUser);
+      })
+      .catch((err) => {
+          console.error(err);
+          res.status(500).send("Error: " + err);
+      });
+  }
+);
+
 
 // Add a movie to a user's list of favorites
 app.post(
-    "/users/:Username/movies/:MovieID",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      await Users.findOneAndUpdate(
-        { Username: req.params.Username },
-        {
-          $push: { FavoriteMovies: req.params.MovieID },
-        },
-        { new: true }
-      ) // This line makes sure that the updated document is returned
-        .then((updatedUser) => {
-          res.json(updatedUser);
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).send("Error: " + err);
-        });
-    }
-  );
+  "/users/:Username/movies/:MovieID",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    await Users.findOneAndUpdate(
+      { username: req.params.Username },
+      {
+        $push: { favoriteMovies: req.params.MovieID },
+      },
+      { new: true }
+    ) // This line makes sure that the updated document is returned
+      .then((updatedUser) => {
+        res.json(updatedUser);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).send("Error: " + err);
+      });
+  }
+);
+
+
   
   // Delete a user by username
-  app.delete(
-    "/users/:Username",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      await Users.findOneAndDelete({ Username: req.params.Username })
-        .then((user) => {
-          if (!user) {
-            res.status(400).send(req.params.Username + " was not found");
-          } else {
-            res.status(200).send(req.params.Username + " was deleted.");
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).send("Error: " + err);
-        });
+app.delete(
+  "/users/:Username",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      const deletedUser = await Users.findOneAndDelete({ username: req.params.Username });
+      if (!deletedUser) {
+        return res.status(404).send(req.params.Username + " was not found");
+      }
+      return res.status(200).send(req.params.Username + " was deleted.");
+    } catch (error) {
+      console.error(error);
+      return res.status(500).send("Error: " + error);
     }
-  );
+  }
+);
+
+
   
   // DELETE favorite movie for user
-  app.delete(
-    "/users/:Username/movies/:MovieID",
-    passport.authenticate("jwt", { session: false }),
-    async (req, res) => {
-      await Users.findOneAndUpdate(
-        { Username: req.params.Username },
-        {
-          $pull: { FavoriteMovies: req.params.MovieID },
-        },
-        { new: true }
-      ) // This line makes sure that the updated document is returned
-        .then((updatedUser) => {
-          res.json(updatedUser);
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).send("Error: " + err);
-        });
+app.delete(
+  "/users/:Username/movies/:MovieID",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      const username = req.params.Username;
+      const movieID = req.params.MovieID;
+
+      // Find the user by username
+      const user = await Users.findOne({ username });
+
+      // If user not found, return error
+      if (!user) {
+        console.error("User not found");
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if the movie exists in the user's favoriteMovies array
+      if (!user.favoriteMovies.includes(movieID)) {
+        console.error("Movie not found in user's favorites");
+        return res.status(404).json({ error: "Movie not found in user's favorites" });
+      }
+
+      // Remove the movie from the user's favoriteMovies array
+      user.favoriteMovies = user.favoriteMovies.filter(id => id !== movieID);
+      await user.save();
+
+      console.log("Favorite movie deleted successfully");
+      res.status(200).json(user);
+    } catch (error) {
+      console.error("Error deleting favorite movie:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
-  );
+  }
+);
+
+
   
   // Error Handling
 app.use((err, req, res, next) => {
