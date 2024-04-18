@@ -13,6 +13,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const JWTStrategy = passportJWT.Strategy;
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const Director = require("./models").Director;
+let auth = require('./auth');
 
 
 const app = express();
