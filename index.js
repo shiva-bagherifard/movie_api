@@ -1,10 +1,12 @@
-require('dotenv').config();
 const express = require("express");
+const app = express();
+require('dotenv').config();
+const bcrypt = require('bcrypt');
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
-const uuid = require("uuid");
 const mongoose = require("mongoose");
 const Models = require("./models");
+const { check, validationResult } = require('express-validator');
 const passport = require("passport");
 const jwt = require('jsonwebtoken');
 const passportJWT = require("passport-jwt");
@@ -13,15 +15,18 @@ const LocalStrategy = require("passport-local").Strategy;
 const JWTStrategy = passportJWT.Strategy;
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const Director = require("./models").Director;
+const cors = require('cors');
 let auth = require('./auth');
 
 
-const app = express();
+
 const Users = Models.User;
 const Movies = Models.Movie;
 const Directors = Models.Director;
 const Genres = Models.Genre;
 
+
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(passport.initialize());
@@ -33,34 +38,6 @@ mongoose.connect("mongodb://localhost:27017/moviesDB", {
   useUnifiedTopology: true,
 });
 
-passport.use(
-  new LocalStrategy(
-    {
-      usernameField: "Username",
-      passwordField: "Password",
-    },
-    async (username, password, callback) => {
-      console.log("${username} ${password}");
-      await Users.findOne({ Username: username })
-        .then((user) => {
-          if (!user) {
-            console.log("incorrect username");
-            return callback(null, false, {
-              message: "Incorrect username or password",
-            });
-          }
-          console.log("finished");
-          return callback(null, user);
-        })
-        .catch((error) => {
-          if (error) {
-            console.log(error);
-            return callback(error);
-          }
-        });
-    }
-  )
-);
 
 console.log('ExtractJWT.fromAuthHeaderAsBearerToken():', ExtractJWT.fromAuthHeaderAsBearerToken());
 
@@ -189,11 +166,21 @@ app.get("/movies/director/:DirectorName", passport.authenticate("jwt", { session
 
 
 
-
-  
- //CREATE New User
- app.post('/users', async (req, res) => {
+//CREATE New User
+app.post('/users', [
+    // Input validation here
+    check('username', 'Username is required').notEmpty(),
+    check('username', 'Username contains non-alphanumeric characters - not allowed.').isAlphanumeric(),
+    check('password', 'Password is required').notEmpty(),
+    check('email', 'Email does not appear to be valid').isEmail()
+], async (req, res) => {
     const { username, password, email, birthdate } = req.body;
+
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
 
     try {
         // Check if the user already exists
@@ -203,10 +190,13 @@ app.get("/movies/director/:DirectorName", passport.authenticate("jwt", { session
             return res.status(400).send(username + " already exists");
         }
 
-        // Create a new user
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create a new user with hashed password
         const newUser = await Users.create({
             username,
-            password,
+            password: hashedPassword,
             email,
             birthdate,
         });
@@ -218,28 +208,29 @@ app.get("/movies/director/:DirectorName", passport.authenticate("jwt", { session
     }
 });
 
+
   
   // Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-      const user = await Users.findOne({ username });
+    const user = await Users.findOne({ username });
 
-      if (!user || user.password !== password) {
-          return res.status(400).json({ error: 'Invalid username or password' });
-      }
+    if (!user || !user.validatePassword(password)) {
+      return res.status(400).json({ error: 'Invalid username or password' });
+    }
 
-      const token = jwt.sign({ sub: user._id }, 'MySecretKey2024!', { expiresIn: '1h' });
+    const token = jwt.sign({ sub: user._id }, 'MySecretKey2024!', { expiresIn: '1h' });
 
-      // Construct response object
-      return res.status(200).json({ message: 'Login successful', user, token });
+    // Respond with token
+    return res.status(200).json({ message: 'Login successful', token });
   } catch (error) {
-      // Error handling
-      console.error('Error during login:', error);
-      return res.status(500).json({ error: 'Something went wrong during login' });
+    console.error('Error during login:', error);
+    return res.status(500).json({ error: 'Something went wrong during login' });
   }
 });
+
 
 
 
@@ -290,36 +281,57 @@ app.get('/movies', verifyToken, checkPermissions, (req, res) => {
   // Update user data
 app.put(
   "/users/:Username",
-  passport.authenticate("jwt", { session: false }),
+  [
+    // Input validation here
+    check('username', 'Username is required').notEmpty(),
+    check('username', 'Username contains non-alphanumeric characters - not allowed.').isAlphanumeric(),
+    check('password', 'Password is required').notEmpty(),
+    check('email', 'Email does not appear to be valid').isEmail(),
+    passport.authenticate("jwt", { session: false }),
+  ],
   async (req, res) => {
-      // Check if the authenticated user is the same as the user being updated
-      if (req.user.username !== req.params.Username) {
-          return res.status(403).json({ error: "Permission denied. You can only update your own user data." });
-      }
+    // Check validation object for errors
+    let errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
+    }
 
-      // Update the user data
-      await Users.findOneAndUpdate(
-          { username: req.params.Username },
-          {
-              $set: {
-                  username: req.body.username,
-                  password: req.body.password,
-                  email: req.body.email,
-                  favoriteMovies: req.body.favoriteMovies,
-                  birthday: req.body.birthday
-              }
-          },
-          { new: true }
-      )
-      .then((updatedUser) => {
-          res.json(updatedUser);
-      })
-      .catch((err) => {
-          console.error(err);
-          res.status(500).send("Error: " + err);
-      });
+    // Check if the authenticated user is the same as the user being updated
+    if (req.user.username !== req.params.Username) {
+      return res.status(403).json({ error: "Permission denied. You can only update your own user data." });
+    }
+
+    // Hash the password before updating the user's information
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    // Update the user data with hashed password
+    try {
+      const updatedUser = await Users.findOneAndUpdate(
+        { username: req.params.Username },
+        {
+          $set: {
+            username: req.body.username,
+            password: hashedPassword,
+            email: req.body.email,
+            favoriteMovies: req.body.favoriteMovies,
+            birthday: req.body.birthday
+          }
+        },
+        { new: true }
+      );
+
+      // After updating the user's information, generate a new JWT token
+      const token = jwt.sign({ sub: updatedUser._id }, 'MySecretKey2024!', { expiresIn: '1h' });
+
+      // Construct response object with updated user and token
+      return res.status(200).json({ message: 'User information updated successfully', user: updatedUser, token });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Error: " + err);
+    }
   }
 );
+
 
 
 // Add a movie to a user's list of favorites
