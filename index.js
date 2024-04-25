@@ -33,7 +33,12 @@ app.use(passport.initialize());
 app.use(express.static("public"));
 app.use(morgan('dev'));
 
-mongoose.connect("mongodb://localhost:27017/moviesDB", {
+// mongoose.connect("mongodb://localhost:27017/moviesDB", {
+//   useNewUrlParser: true,
+//   useUnifiedTopology: true,
+// });
+
+mongoose.connect( process.env.CONNECTION_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
