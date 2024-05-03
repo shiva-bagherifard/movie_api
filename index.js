@@ -85,6 +85,7 @@ app.get("/", (req, res) => {
         res.status(500).send("Error: " + err);
       });
   });
+
   // READ user by username
   app.get("/users/:Username", async (req, res) => {
     await Users.findOne({ Username: req.params.Username })
