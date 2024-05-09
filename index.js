@@ -230,7 +230,7 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ sub: user._id }, 'MySecretKey2024!', { expiresIn: '1h' });
 
     // Respond with token
-    return res.status(200).json({ message: 'Login successful', token });
+    return res.status(200).json({ message: 'Login successful', token,user:user });
   } catch (error) {
     console.error('Error during login:', error);
     return res.status(500).json({ error: 'Something went wrong during login' });
